@@ -1,9 +1,14 @@
 import pytest
 import pathlib
 import cx_Freeze
-
+import sys
 
 class TestExecutable:
+
+    @pytest.fixture()
+    def fix_executable(self):
+        fake_script_name = "SomeFakeScript.py"
+        return cx_Freeze.Executable(fake_script_name)
 
     def test___init__(self, mocker):
         """ This method checks the expected initial values for instantiating Exec with only required args"""
@@ -35,3 +40,23 @@ class TestExecutable:
             mocker.call("shortcut_dir", None, None),
         ]
         mock_validate.assert_has_calls(expected_calls)
+
+    def test___repr__(self, fix_executable):
+        repr_str = repr(fix_executable)
+        assert isinstance(repr_str, str)
+
+    def test_base_get(self, fix_executable):
+        base_value = fix_executable.base
+        assert isinstance(base_value, pathlib.Path)
+
+    @pytest.mark.parametrize("platform, extension", [("win32", ".exe"), ("darwin", "")])
+    def test_base_set(self, mocker, fix_executable, platform, extension):
+        mocker.patch.object(sys, "platform", platform)
+        mocker.patch("pathlib.Path.exists", return_value=True)  # Force True so we get a path returned
+        fix_executable.base = "Console"
+        assert isinstance(fix_executable.base, pathlib.Path)
+        assert fix_executable._ext == extension
+
+    def test_base_set_raises_config_error_on_none(self, fix_executable):
+        with pytest.raises(cx_Freeze.ConfigError):
+            fix_executable.base = "SomethingUnexpected"
